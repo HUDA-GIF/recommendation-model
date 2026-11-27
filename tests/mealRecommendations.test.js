@@ -134,4 +134,76 @@ describe('Meal recommendations (Supabase-aligned)', () => {
       'Fitness goal is missing. Complete your profile to get personalized meal recommendations.'
     );
   });
+
+  it('requires an explicit halal tag instead of inferring halal from missing ingredients', () => {
+    const result = recommendMeals({
+      profile: {
+        fitness_goal: 'general_fitness',
+        diet_preference: 'halal',
+      },
+      meals: [
+        {
+          id: 'unknown',
+          title: 'Unverified Recipe',
+          diet_tags: [],
+          ingredients: ['chicken'],
+          allergens: [],
+        },
+        {
+          id: 'verified',
+          title: 'Halal Recipe',
+          diet_tags: ['halal'],
+          ingredients: ['chicken'],
+          allergens: [],
+        },
+      ],
+    });
+
+    assert.deepEqual(result.recommendations.map((meal) => meal.id), ['verified']);
+  });
+
+  it('does not recommend meals with unknown allergen metadata when the user has allergies', () => {
+    const result = recommendMeals({
+      profile: {
+        fitness_goal: 'general_fitness',
+        allergies: ['peanut'],
+      },
+      meals: [
+        { id: 'unknown', title: 'Unknown Ingredients' },
+        {
+          id: 'safe',
+          title: 'Known Ingredients',
+          ingredients: ['rice', 'vegetables'],
+          allergens: [],
+        },
+      ],
+    });
+
+    assert.deepEqual(result.recommendations.map((meal) => meal.id), ['safe']);
+    assert.ok(result.rejected.some((item) => item.reason === 'allergen_metadata_missing'));
+  });
+
+  it('uses explicit goal tags and nutrition rather than catalogue-relative medians', () => {
+    const result = recommendMeals({
+      profile: { fitness_goal: 'weight_loss' },
+      meals: [
+        {
+          id: 'tagged',
+          title: 'Portion-Controlled Meal',
+          goal_tags: ['weight_loss'],
+          ingredients: ['vegetables'],
+          allergens: [],
+        },
+        {
+          id: 'unmatched',
+          title: 'Unclassified Meal',
+          ingredients: ['rice'],
+          allergens: [],
+        },
+      ],
+    });
+
+    assert.equal(result.recommendations[0].id, 'tagged');
+    assert.equal(result.recommendations[0].scoreBreakdown.goal, 30);
+  });
 });

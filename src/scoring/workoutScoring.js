@@ -33,10 +33,7 @@ function scoreGoal(workoutGoal, userGoal) {
 function scoreLevel(workoutLevel, userLevel) {
   const w = levelRank(workoutLevel);
   const u = levelRank(userLevel);
-  if (u == null || w == null) return Math.round(WORKOUT_WEIGHTS.level / 2);
-  if (w === u) return WORKOUT_WEIGHTS.level;
-  if (w === u - 1) return 12;
-  return 0;
+  return w != null && u != null && w === u ? WORKOUT_WEIGHTS.level : 0;
 }
 
 /**

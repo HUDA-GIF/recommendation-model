@@ -5,6 +5,7 @@
 
 export { recommendWorkouts } from './recommendWorkouts.js';
 export { recommendMeals } from './recommendMeals.js';
+export { getSupabaseRecommendations } from './supabaseRecommendations.js';
 
 export {
   filterWorkouts,

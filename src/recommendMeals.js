@@ -4,7 +4,7 @@
  * Nutrition values are never invented.
  */
 
-import { hasProfileGoal } from './utils/normalize.js';
+import { SUPABASE_GOALS } from './utils/normalize.js';
 import {
   filterMeals,
   getMealProfileFields,
@@ -40,7 +40,9 @@ export function recommendMeals({
     };
   }
 
-  if (requireGoal && !hasProfileGoal(profile)) {
+  const profileFields = getMealProfileFields(profile);
+
+  if (requireGoal && !SUPABASE_GOALS.includes(profileFields.goal)) {
     return {
       ok: false,
       needsProfile: true,
@@ -63,7 +65,6 @@ export function recommendMeals({
     };
   }
 
-  const profileFields = getMealProfileFields(profile);
   const { passed, rejected } = filterMeals(meals, profileFields);
 
   if (passed.length === 0) {

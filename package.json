@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/interactive.js",
-    "test": "node --test tests/workoutRecommendations.test.js tests/mealRecommendations.test.js",
+    "test": "node --test tests/workoutRecommendations.test.js tests/mealRecommendations.test.js tests/supabaseRecommendations.test.js",
     "demo": "node src/demo.js"
   },
   "keywords": [

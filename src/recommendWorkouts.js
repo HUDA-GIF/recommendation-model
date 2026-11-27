@@ -3,7 +3,7 @@
  * Flow: profile check → hard filter → score → rank → top N
  */
 
-import { hasProfileGoal } from './utils/normalize.js';
+import { SUPABASE_GOALS } from './utils/normalize.js';
 import {
   filterWorkouts,
   getWorkoutProfileFields,
@@ -36,7 +36,9 @@ export function recommendWorkouts({
     };
   }
 
-  if (requireGoal && !hasProfileGoal(profile)) {
+  const profileFields = getWorkoutProfileFields(profile);
+
+  if (requireGoal && !SUPABASE_GOALS.includes(profileFields.goal)) {
     return {
       ok: false,
       needsProfile: true,
@@ -44,6 +46,31 @@ export function recommendWorkouts({
       reason: 'missing_fitness_goal',
       message:
         'Fitness goal is missing. Complete your profile to get personalized workout recommendations.',
+      rejected: [],
+    };
+  }
+
+  if (!['beginner', 'intermediate', 'advanced'].includes(profileFields.level)) {
+    return {
+      ok: false,
+      needsProfile: true,
+      recommendations: [],
+      reason: 'missing_fitness_level',
+      message: 'A valid fitness level is required for personalized workout recommendations.',
+      rejected: [],
+    };
+  }
+
+  if (
+    !Number.isFinite(profileFields.availableMinutes) ||
+    profileFields.availableMinutes <= 0
+  ) {
+    return {
+      ok: false,
+      needsProfile: true,
+      recommendations: [],
+      reason: 'missing_available_time',
+      message: 'Available workout time is required to recommend workouts that fit your schedule.',
       rejected: [],
     };
   }
@@ -59,7 +86,6 @@ export function recommendWorkouts({
     };
   }
 
-  const profileFields = getWorkoutProfileFields(profile);
   const { passed, rejected } = filterWorkouts(workouts, profileFields);
 
   if (passed.length === 0) {

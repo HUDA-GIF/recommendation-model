@@ -83,23 +83,19 @@ export function passesRestrictions(workout, userRestrictions) {
   return !userRestrictions.some((r) => tagSet.has(r));
 }
 
-/**
- * Exclude workouts that are harder than the user's level.
- * Do not offer beginner workouts to an advanced user (a two-level gap).
- */
+/** Only return templates labelled for the user's selected fitness level. */
 export function levelCompatible(workoutLevel, userLevel) {
   const w = levelRank(workoutLevel);
   const u = levelRank(userLevel);
-  if (u == null) return true;
-  if (w == null) return true;
+  if (u == null || w == null) return false;
   return w === u;
 }
 
 export function timeCompatible(durationMinutes, availableMinutes) {
-  if (!Number.isFinite(availableMinutes) || availableMinutes <= 0) return true;
+  if (!Number.isFinite(availableMinutes) || availableMinutes <= 0) return false;
   const duration = Number(durationMinutes);
   if (!Number.isFinite(duration)) return false;
-  return duration <= availableMinutes && duration >= availableMinutes * 0.6;
+  return duration > 0 && duration <= availableMinutes;
 }
 
 /**
@@ -109,7 +105,6 @@ export function timeCompatible(durationMinutes, availableMinutes) {
 export function goalCompatible(workoutGoal, userGoal) {
   if (!userGoal) return true;
   const w = canonicalGoal(workoutGoal);
-  if (userGoal === 'general_fitness') return true;
   if (!w) return false;
   return w === userGoal;
 }

@@ -78,14 +78,7 @@ export function dietaryCompatible(meal, userPreference) {
   }
 
   if (userPreference === 'halal') {
-    // The dataset has no explicit non-Halal field, so exclude pork and alcohol ingredients.
-    const haystack = [
-      ...tags,
-      ...(m?.ingredients ?? []),
-      normalizeText(m?.name),
-    ].join(' ');
-    const nonHalal = ['pork', 'bacon', 'ham', 'alcohol', 'wine', 'beer', 'gelatin'];
-    return !nonHalal.some((x) => haystack.includes(x));
+    return Boolean(m?.dietTags.includes('halal'));
   }
 
   if (
@@ -103,12 +96,25 @@ export function containsAllergen(meal, userAllergies) {
   if (!userAllergies.length) return false;
   const m = getMealFields(meal);
   const allergenFields = unique([...m.allergens, ...m.ingredients]);
-  const haystack = allergenFields.join(' ');
 
   return userAllergies.some((allergy) => {
     if (!allergy) return false;
-    return allergenFields.includes(allergy) || haystack.includes(allergy);
+    return allergenFields.some(
+      (field) =>
+        field === allergy ||
+        field.startsWith(`${allergy}_`) ||
+        field.endsWith(`_${allergy}`) ||
+        field.split('_').includes(allergy)
+    );
   });
+}
+
+function hasAllergenMetadata(meal) {
+  return (
+    meal.allergens != null ||
+    meal.allergen_tags != null ||
+    meal.ingredients != null
+  );
 }
 
 /** Common dislike words → related ingredient tokens */
@@ -176,6 +182,10 @@ export function passesMealHardFilters(meal, profileFields) {
 
   if (!dietaryCompatible(meal, dietaryPreference)) {
     return { pass: false, reason: 'dietary_preference' };
+  }
+
+  if (allergies.length > 0 && !hasAllergenMetadata(meal)) {
+    return { pass: false, reason: 'allergen_metadata_missing' };
   }
 
   if (containsAllergen(meal, allergies)) {

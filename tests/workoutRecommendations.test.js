@@ -147,8 +147,9 @@ describe('Workout recommendations (Supabase-aligned)', () => {
 
     assert.deepEqual(
       result.recommendations.map((workout) => workout.id),
-      ['match']
+      ['match', 'short']
     );
+    assert.ok(result.recommendations[0].score > result.recommendations[1].score);
   });
 
   it('finds matching weight-loss workouts for a 40-minute intermediate profile', () => {
@@ -170,7 +171,7 @@ describe('Workout recommendations (Supabase-aligned)', () => {
     for (const workout of result.recommendations) {
       assert.equal(workout.difficulty, 'intermediate');
       assert.equal(workout.goal, 'weight_loss');
-      assert.ok(workout.duration_min >= 24);
+      assert.ok(workout.duration_min > 0);
       assert.ok(workout.duration_min <= 40);
     }
   });
@@ -227,6 +228,70 @@ describe('Workout recommendations (Supabase-aligned)', () => {
     for (const w of result.recommendations) {
       assert.notEqual(w.difficulty, 'beginner', w.title);
     }
+  });
+
+  it('does not recommend a workout longer than available time or for another goal', () => {
+    const result = recommendWorkouts({
+      profile: {
+        fitness_goal: 'general_fitness',
+        fitness_level: 'intermediate',
+        available_workout_duration: 30,
+        equipment: ['none'],
+      },
+      workouts: [
+        {
+          id: 'short-general',
+          title: 'Short General Session',
+          goal: 'general_fitness',
+          difficulty: 'intermediate',
+          duration_min: 10,
+          equipment: ['none'],
+        },
+        {
+          id: 'other-goal',
+          title: 'Weight Loss Session',
+          goal: 'weight_loss',
+          difficulty: 'intermediate',
+          duration_min: 20,
+          equipment: ['none'],
+        },
+        {
+          id: 'too-long',
+          title: 'Long General Session',
+          goal: 'general_fitness',
+          difficulty: 'intermediate',
+          duration_min: 31,
+          equipment: ['none'],
+        },
+      ],
+    });
+
+    assert.deepEqual(
+      result.recommendations.map((workout) => workout.id),
+      ['short-general']
+    );
+    assert.ok(result.rejected.some((item) => item.reason === 'goal'));
+    assert.ok(result.rejected.some((item) => item.reason === 'duration'));
+  });
+
+  it('requires fitness level and available time for workout recommendations', () => {
+    const missingLevel = recommendWorkouts({
+      profile: {
+        fitness_goal: 'weight_loss',
+        available_workout_duration: 30,
+      },
+      workouts: SAMPLE_WORKOUTS,
+    });
+    const missingTime = recommendWorkouts({
+      profile: {
+        fitness_goal: 'weight_loss',
+        fitness_level: 'beginner',
+      },
+      workouts: SAMPLE_WORKOUTS,
+    });
+
+    assert.equal(missingLevel.reason, 'missing_fitness_level');
+    assert.equal(missingTime.reason, 'missing_available_time');
   });
 
   it('different profiles produce different top recommendations', () => {

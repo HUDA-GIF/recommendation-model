@@ -109,7 +109,8 @@ export function getMealFields(meal = {}) {
     recommendationTags: toArray(
       meal.recommendation_tags ?? meal.recommendationTags ?? meal.tags
     ),
-    allergens: toArray(meal.allergens),
+    goalTags: toArray(meal.goal_tags ?? meal.goalTags),
+    allergens: toArray(meal.allergens ?? meal.allergen_tags),
     ingredients: toArray(meal.ingredients),
     calories: meal.kcal ?? meal.calories,
     protein: meal.protein_g ?? meal.protein,

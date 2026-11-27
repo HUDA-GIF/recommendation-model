@@ -1,269 +1,109 @@
 # AlphaFit Personalized Recommendation Engine
 
-A **rule-based personalized recommendation engine** designed for AlphaFit. It generates workout and meal recommendations based on each user's fitness profile, fitness goals, available equipment, and dietary preferences.
+A rule-based engine for personalized workout and meal recommendations. This is
+not a separately trained machine-learning model.
 
-The engine is aligned with the live Supabase database schema and uses the following tables:
+The package can run against local sample data or connect to the AlphaFit
+Supabase tables `profiles`, `workout_templates`, and `meals`.
 
-- `profiles`
-- `workout_templates`
-- `meals`
+## Requirements and commands
 
-> **Note:** This is a rule-based recommendation engine, not a separately trained machine learning or deep learning model.
+Node.js 18 or newer.
 
----
+```bash
+npm start     # Enter a profile in the terminal; uses local sample data
+npm test      # Run the automated tests
+npm run demo  # Show recommendations for sample profiles
+```
 
-## 1. Supabase Profile Fields
+The sample catalogue contains 22 workouts and 12 meals. Running the local demo
+does not require Supabase credentials.
 
-The recommendation engine uses the following fields from the `profiles` table:
+## Supabase fields
 
-| Column | Allowed Values / Notes |
+| Table | Fields used |
 |---|---|
-| `fitness_goal` | `weight_loss`, `muscle_gain`, `endurance`, `general_fitness` |
-| `fitness_level` | `beginner`, `intermediate`, `advanced` |
-| `equipment` | `text[]`, e.g. `{none}`, `dumbbells` — uses the same keys as exercises |
-| `diet_preference` | `any`, `vegetarian`, `halal`, `vegan` |
-| `disliked_foods` | `text[]` — foods the user dislikes; these are hard-excluded from meal recommendations |
-| `age` | User's age |
-| `gender` | User's gender |
-| `height_cm` | User's height in centimeters |
-| `weight_kg` | User's weight in kilograms |
+| `profiles` | `id`, `fitness_goal`, `fitness_level`, `available_workout_duration`, `equipment`, `diet_preference`, `disliked_foods`, `allergies`, `dietary_restrictions`, `daily_calorie_target` |
+| `workout_templates` | `id`, `title`, `goal`, `difficulty`, `duration_min`, `equipment`, `focus`, `tags`, `restriction_flags` |
+| `meals` | `id`, `title`, `diet_tags`, `goal_tags`, `recommendation_tags`, `ingredients`, `allergens`, `restriction_flags`, `kcal`, `protein_g`, `carbs_g`, `fat_g` |
 
-### Optional Engine Inputs
+Supported fitness goals are `weight_loss`, `muscle_gain`, `endurance`, and
+`general_fitness`. Supported fitness levels are `beginner`, `intermediate`, and
+`advanced`. The `fitness_score` column is not used.
 
-The application may also pass the following optional inputs:
+## Recommendation behavior
 
-- `available_workout_duration` — Available workout duration.
-- `allergies` — User's allergies.
-- `daily_calorie_target` — User's daily calorie target.
+- Workouts require a valid goal, fitness level, and available time. They must
+  match the user's goal and level, fit within the available time, and satisfy
+  equipment and restriction filters. A workout may be shorter than 60% of the
+  available time.
+- Meals are filtered by dietary preference, allergies, disliked foods, and
+  restrictions, then ranked by goal tags and available nutrition information.
+- A halal preference requires an explicit `halal` value in `diet_tags`.
+- If a user has allergies, a meal must have an `allergens`, `allergen_tags`, or
+  `ingredients` field to be considered. Accurate catalogue metadata is
+  essential; the engine cannot verify missing or mislabeled ingredients.
+- Goal and nutrition scores are transparent heuristics, not medically
+  validated dietary advice. No calorie or nutrition values are invented.
+- If no catalogue entries match the profile, the engine returns an empty result.
 
-**Important:** The `fitness_score` column does not exist in the live Supabase schema. Therefore, the recommendation engine does not use or depend on it.
+Suggested meal tags include `lower_calorie`, `portion_control`, `high_fibre`,
+and `balanced` for weight-loss ranking; `high_protein` for muscle-gain ranking;
+and `energy_dense`, `carb_focused`, or `balanced` for endurance ranking.
+`goal_tags` may include canonical fitness goals for a direct goal match.
 
----
+## Connect to Supabase
 
-## 2. Catalogue Tables Used for Recommendations
+The app must create and authenticate its Supabase client. Pass that client and
+the signed-in user's ID to the adapter:
 
-The engine retrieves workout and meal data from two catalogue tables.
+```js
+import { getSupabaseRecommendations } from './src/index.js';
 
-### Workouts — `workout_templates`
+const { data: { user }, error } = await supabase.auth.getUser();
+if (error) throw error;
+if (!user) throw new Error('Sign in before requesting recommendations.');
 
-Workout recommendations are generated using fields such as:
-
-- `goal` — Fitness goal associated with the workout.
-- `difficulty` — Workout difficulty level.
-- `duration_min` — Workout duration in minutes.
-- `equipment` — Equipment required for the workout.
-- `focus` — Primary training focus.
-
-### Meals — `meals`
-
-Meal recommendations are generated using fields such as:
-
-- `diet_tags` — Dietary categories associated with the meal.
-- `recommendation_tags` — Tags used to match meals with user preferences and goals.
-- `allergens` — Allergens associated with the meal.
-- `kcal` — Calories per serving.
-- `protein_g` — Protein content in grams.
-
----
-
-## 3. How the Recommendation Engine Works
-
-AlphaFit uses a rule-based filtering and ranking approach to generate personalized recommendations.
-
-### Workout Recommendations
-
-The engine considers:
-
-1. The user's fitness goal.
-2. The user's fitness level.
-3. Available workout equipment.
-4. Available workout duration, when provided.
-5. Workout focus and other relevant attributes.
-
-### Meal Recommendations
-
-The engine considers:
-
-1. The user's dietary preference.
-2. Disliked foods, which are hard-excluded.
-3. Allergies, when provided.
-4. Meal recommendation tags.
-5. Calorie information, when a daily calorie target is provided.
-6. Protein content and other nutritional information.
-
-The engine filters unsuitable options and ranks the remaining workouts and meals according to predefined recommendation rules.
-
----
-
-## 4. Installation and Setup
-
-Clone the repository:
-
-```bash
-git clone <your-repository-url>
-```
-
-Navigate to the project directory:
-
-```bash
-cd <project-folder>
-```
-
-Install the dependencies:
-
-```bash
-npm install
-```
-
----
-
-## 5. Running the Engine
-
-The project provides three main commands.
-
-### Start the Engine
-
-```bash
-npm start
-```
-
-Starts the recommendation engine and allows you to enter your own fitness profile in the terminal.
-
-No user profile is pre-filled.
-
-### Run Tests
-
-```bash
-npm test
-```
-
-Runs the project's test suite to verify the recommendation engine functionality.
-
-### Run Demo
-
-```bash
-npm run demo
-```
-
-Runs the recommendation engine demonstration.
-
----
-
-## 6. Supabase Integration
-
-The recommendation engine can be integrated into the AlphaFit application using Supabase.
-
-### Step 1: Fetch User Profile
-
-Retrieve the user's fitness information from the `profiles` table.
-
-```javascript
-const { data: profile } = await supabase
-  .from('profiles')
-  .select(`
-    fitness_goal,
-    fitness_level,
-    age,
-    gender,
-    height_cm,
-    weight_kg,
-    equipment,
-    diet_preference,
-    disliked_foods
-  `)
-  .eq('id', userId)
-  .single();
-```
-
-### Step 2: Fetch Workout Templates
-
-Retrieve available workout templates:
-
-```javascript
-const { data: templates } = await supabase
-  .from('workout_templates')
-  .select('*');
-```
-
-### Step 3: Fetch Meals
-
-Retrieve available meals:
-
-```javascript
-const { data: meals } = await supabase
-  .from('meals')
-  .select('*');
-```
-
-### Step 4: Generate Recommendations
-
-Import the recommendation functions:
-
-```javascript
-import {
-  recommendWorkouts,
-  recommendMeals
-} from './src/index.js';
-```
-
-Generate personalized workout recommendations:
-
-```javascript
-const workouts = recommendWorkouts({
-  profile,
-  workouts: templates
+const result = await getSupabaseRecommendations({
+  supabase,
+  userId: user.id,
+  profileOverrides: {
+    // Supply at runtime if this value is not stored in profiles.
+    available_workout_duration: 30,
+  },
+  limit: 5,
 });
+
+const workouts = result.workoutRecommendations.recommendations;
+const meals = result.mealRecommendations.recommendations;
 ```
 
-Generate personalized meal recommendations:
+By default, the helper reads `profiles` with `id = userId` and reads the
+`workout_templates` and `meals` catalogues. Table names and the profile ID
+column can be overridden. Query errors and missing profiles are reported as
+errors; incomplete recommendation profiles are returned in the recommendation
+result's `reason` and `message`.
 
-```javascript
-const mealRecs = recommendMeals({
-  profile,
-  meals
-});
-```
+Use the signed-in user's client and configure Row-Level Security (RLS) so a
+user can read only their own profile (for example, `auth.uid() = id`). Grant
+authenticated users read access to the catalogues. Never put a Supabase
+service-role key in client-side code.
 
-The returned results can then be displayed in the AlphaFit application.
+See [SUPABASE_INTEGRATION.md](./SUPABASE_INTEGRATION.md) for the full expected
+schema and integration notes.
 
----
+## Scope
 
-## 7. Database Security (RLS)
+This repository implements the recommendation component of AlphaFit. It does
+not include the React Native app, pose estimation, rep counting, MET-based
+calorie estimation, AI Coach, food logging, analytics, or notifications.
+AlphaFit's recommendation engine is deterministic JavaScript logic, not a
+trained neural network.
 
-The engine uses Supabase Row Level Security (RLS) policies for database access.
+Suggested FYP description:
 
-- Catalogue read access is available to signed-in users.
-- User profile access should follow the application's profile access policies.
-- The Supabase service-role key must never be exposed in frontend or client-side application code.
-
----
-
-## 8. Important Notes
-
-- The engine uses the live Supabase database schema.
-- It does not depend on a `fitness_score` column.
-- Workout and meal recommendations are generated using predefined rules.
-- Disliked foods are hard-excluded from meal recommendations.
-- Optional inputs can be provided by the application when available.
-- Biometric information provides user context; the engine does not invent medical targets.
-
----
-
-## 9. Final Year Project (FYP) Description
-
-The following description can be used in AlphaFit FYP documentation:
-
-> AlphaFit implements a **Rule-Based Personalized Recommendation Engine** that filters and ranks workout templates and meal options based on individual user profiles and preferences. The system utilizes live data from the Supabase database, including fitness goals, fitness levels, available equipment, dietary preferences, disliked foods, and nutritional information. It generates personalized workout and meal recommendations using predefined filtering and ranking rules. The engine is not a separately trained machine learning or deep learning model.
-
----
-
-## 10. Technologies Used
-
-- **JavaScript (Node.js)** — Recommendation engine implementation.
-- **Supabase** — Database and backend integration.
-- **PostgreSQL** — Database management.
-- **Rule-Based Logic** — Personalized filtering and ranking of recommendations.
-
----
-
-**AlphaFit — Personalized Fitness and Nutrition Recommendations.**
+> AlphaFit uses a rule-based recommendation engine to filter and rank workout
+> and meal catalogue entries using the user's fitness goals, fitness level,
+> available time, equipment, dietary preferences, restrictions, and allergies.
+> The engine is deterministic JavaScript logic and is not a separately trained
+> machine-learning model.
